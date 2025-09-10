@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             btnInstallPrinters = new Button();
             textBox1 = new TextBox();
             progressBar1 = new ProgressBar();
@@ -38,11 +39,14 @@
             // 
             // btnInstallPrinters
             // 
-            btnInstallPrinters.Location = new Point(91, 31);
+            btnInstallPrinters.Image = Properties.Resources.install_icon;
+            btnInstallPrinters.ImageAlign = ContentAlignment.MiddleLeft;
+            btnInstallPrinters.Location = new Point(91, 12);
             btnInstallPrinters.Name = "btnInstallPrinters";
-            btnInstallPrinters.Size = new Size(161, 29);
+            btnInstallPrinters.Size = new Size(188, 62);
             btnInstallPrinters.TabIndex = 0;
             btnInstallPrinters.Text = "Install DKL Printers";
+            btnInstallPrinters.TextImageRelation = TextImageRelation.ImageBeforeText;
             btnInstallPrinters.UseVisualStyleBackColor = true;
             btnInstallPrinters.Click += btnInstallPrinters_Click;
             // 
@@ -67,9 +71,9 @@
             lblProgress.AutoSize = true;
             lblProgress.Location = new Point(91, 318);
             lblProgress.Name = "lblProgress";
-            lblProgress.Size = new Size(29, 20);
+            lblProgress.Size = new Size(30, 20);
             lblProgress.TabIndex = 3;
-            lblProgress.Text = "0%";
+            lblProgress.Text = "🖨️";
             // 
             // Form1
             // 
@@ -80,6 +84,7 @@
             Controls.Add(progressBar1);
             Controls.Add(textBox1);
             Controls.Add(btnInstallPrinters);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
             Text = "Install DKL Printers";
             ResumeLayout(false);

@@ -6,125 +6,77 @@ namespace InstallDKLPrinters
 {
     public partial class Form1 : Form
     {
+        // Spinner animation frames for progress indication
+        private string[] spinnerFrames = new[] { "|", "/", "-", "\\" };
+        private int spinnerIndex = 0;
+        private bool isInstalling = false;
+
         public Form1()
         {
-            InitializeComponent();
-            InitializeStatusStrip();
-            InitializeTimer();
-
+            InitializeComponent();        // Initialize UI components
+            InitializeStatusStrip();      // Set up the status bar
+            InitializeTimer();            // Start the timer for UI updates
         }
+
+        // Event handler for the "Install Printers" button click
         private async void btnInstallPrinters_Click(object sender, EventArgs e)
         {
-            btnInstallPrinters.Enabled = false;
-            progressBar1.Value = 0;
-            lblProgress.Text = "Starting...";
+            btnInstallPrinters.Enabled = false; // Disable button during installation
+            progressBar1.Style = ProgressBarStyle.Marquee; // Show indeterminate progress
+            progressBar1.MarqueeAnimationSpeed = 30;
 
+            isInstalling = true;
+            lblProgress.Text = "🖨️ Installing printers... Please wait |";
+
+            // Run printer installation in a background thread
             await Task.Run(() => InstallPrinters());
 
-            lblProgress.Text = "✅ Done!";
+            // Update UI after installation completes
+            isInstalling = false;
+            progressBar1.Style = ProgressBarStyle.Blocks;
+            progressBar1.Value = 100;
+            lblProgress.Text = "✅ Printers installed successfully!";
             btnInstallPrinters.Enabled = true;
+
+            // Prompt user to restart the system
+            DialogResult result = MessageBox.Show(
+                "Installation complete. To apply all printer settings, the computer needs to restart.\nDo you want to restart now?",
+                "Restart Required",
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Question
+            );
+
+            if (result == DialogResult.OK)
+            {
+                Log("🔁 Restarting system in 30 seconds...");
+                Process.Start("shutdown", "/r /t 30"); // Schedule restart
+            }
+            else
+            {
+                Log("⏳ Restart skipped by user.");
+            }
         }
 
+        // Executes PowerShell scripts to install printers and apply settings
         private void InstallPrinters()
         {
             try
             {
                 string workingDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\') + "\\";
 
-                string pnputilPath = Path.Combine(workingDir, "pnputil.exe");
-               // string configXmlPath = Path.Combine(workingDir, "CommonConfiguration.xml");
+                // Define paths to PowerShell scripts
+                string installPrintersScript = Path.Combine(workingDir, "installprinters.ps1");
+                string setSecureScript = Path.Combine(workingDir, "SeSecurePrintSettings.ps1");
 
-                int arch = GetProcessorArchitecture();
-                string driverInf, driverFolder;
+                // Run installprinters.ps1
+                Log("▶️ Running installprinters.ps1...");
+                RunCommand("powershell", $"-ExecutionPolicy Bypass -File \"{installPrintersScript}\"");
 
-                if (arch == 12)
-                {
-                    driverFolder = "UNIV_5.1055.3.0_PCL6_ARM64_Driver.inf";
-                    driverInf = Path.Combine(workingDir, driverFolder, "x3UNIVX.inf");
-                    Log("Detected ARM64 - using ARM driver");
-                }
-                else
-                {
-                    driverFolder = "UNIV_5.759.5.0_PCL6_x64_Driver.inf";
-                    driverInf = Path.Combine(workingDir, driverFolder, "x3UNIVX.inf");
-                    Log("Detected x64 - using x64 driver");
-                }
+                // Run SeSecurePrintSettings.ps1
+                Log("▶️ Running SeSecurePrintSettings.ps1...");
+                RunCommand("powershell", $"-ExecutionPolicy Bypass -File \"{setSecureScript}\"");
 
-                
-
-                string driverName = "Xerox Global Print Driver PCL6";
-
-                File.Copy(pnputilPath, @"C:\Windows\pnputil.exe", true);
-                //File.Copy(configXmlPath, @"C:\Windows\CommonConfiguration.xml", true);
-
-               // Registry.SetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata", "PreventDeviceMetadataFromNetwork", 1);
-                //using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Xerox\PrinterDriver\V5.0\Configuration"))
-               // {
-                   // key.SetValue("RepositoryUNCPath", @"C:\Windows");
-               // }
-
-                RunCommand("C:\\Windows\\pnputil.exe", $"/add-driver \"{driverInf}\"");
-                System.Threading.Thread.Sleep(8000);
-
-                var printers = new Dictionary<string, string>
-                {
-                    { "Library Printer 5", "Add IP Address" },
-                    { "Library Printer 1", "Add IP Address" },
-                    { "Library Printer 3", "Add IP Address" },
-                    { "Library Printer 2", "Add IP Address" },
-                    { "Library Printer 4", "Add IP Address" },
-                    { "Library Printer 6", "Add IP Address" },
-                    { "Library Printer 7", "Add IP Address" }
-                };
-
-                int totalPrinters = printers.Count;
-                int currentStep = 0;
-
-                Log($"Your computer architecture is {arch}");
-                Log($"");
-
-                foreach (var pair in printers)
-                {
-                    
-                    string printerName = pair.Key;
-                    string ip = pair.Value;
-                    string portName = "IP_" + ip;
-                    
-                    Log($"Installing {printerName}...");
-
-                    RunCommand("powershell", $"-Command \"if (-Not (Get-PrinterPort -Name '{portName}' -ErrorAction SilentlyContinue)) {{ Add-PrinterPort -Name '{portName}' -PrinterHostAddress '{ip}' }}\"");
-                    RunCommand("powershell", $"-Command \"Add-PrinterDriver -Name '{driverName}' -ErrorAction SilentlyContinue\"");
-                    RunCommand("powershell", $"-Command \"Add-Printer -Name '{printerName}' -PortName '{portName}' -DriverName '{driverName}' -ErrorAction SilentlyContinue\"");
-
-                    currentStep++;
-                    int percent = (int)((currentStep / (float)totalPrinters) * 100);
-                    UpdateProgress(percent, printerName);
-                }
-
-                string scriptPath = Path.Combine(workingDir, "SetSecurePrintSettings.ps1");
-                RunCommand("powershell", $"-ExecutionPolicy Bypass -File \"{scriptPath}\"");
-                Log("✅ SeSecurePrintSetings.ps1 script executed successfully.");
-
-                DialogResult result = MessageBox.Show(
-                    "Installation complete. To apply all printer settings, the computer needs to restart.\nDo you want to restart now?",
-                    "Restart Required",
-                    MessageBoxButtons.OKCancel,
-                    MessageBoxIcon.Question
-                );
-
-                if (result == DialogResult.OK)
-                {
-                    Log("🔁 User confirmed restart. Restarting system...");
-                    Process.Start("shutdown", "/r /t 3"); // Restart in 3 seconds
-                }
-                else
-                {
-                    Log("⏳ Restart cancelled by user. Please restart manually later.");
-                }
-
-
-
-                Log("✅ Completed installing DKL printers.");
+                Log("✅ All scripts executed successfully.");
             }
             catch (Exception ex)
             {
@@ -132,6 +84,7 @@ namespace InstallDKLPrinters
             }
         }
 
+        // Returns an integer representing the processor architecture
         private int GetProcessorArchitecture()
         {
             Architecture arch = RuntimeInformation.OSArchitecture;
@@ -141,11 +94,12 @@ namespace InstallDKLPrinters
             else if (arch == Architecture.X64)
                 return 9;
             else if (arch == Architecture.Arm || arch == Architecture.Arm64)
-                return 5;
+                return 12;
             else
-                return -1;
+                return -1; // Unknown architecture
         }
 
+        // Runs a command-line process and logs output/errors
         private void RunCommand(string exe, string args)
         {
             var proc = new Process
@@ -157,18 +111,21 @@ namespace InstallDKLPrinters
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
-                    RedirectStandardError = true,
+                    RedirectStandardError = true
                 }
             };
-            proc.Start();
-            string output = proc.StandardOutput.ReadToEnd();
-            string error = proc.StandardError.ReadToEnd();
-            proc.WaitForExit();
 
-            if (!string.IsNullOrWhiteSpace(output)) Log(output);
-            if (!string.IsNullOrWhiteSpace(error)) Log("⚠️ " + error);
+            // Log standard output and error asynchronously
+            proc.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) Log(e.Data); };
+            proc.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) Log("⚠️ " + e.Data); };
+
+            proc.Start();
+            proc.BeginOutputReadLine();
+            proc.BeginErrorReadLine();
+            proc.WaitForExit(); // Wait for process to finish
         }
 
+        // Logs messages to the text box with timestamp
         private void Log(string message)
         {
             if (InvokeRequired)
@@ -176,33 +133,21 @@ namespace InstallDKLPrinters
                 Invoke(new Action(() => Log(message)));
                 return;
             }
+
             textBox1.AppendText($"{DateTime.Now:T} - {message}{Environment.NewLine}");
+            textBox1.SelectionStart = textBox1.Text.Length;
+            textBox1.ScrollToCaret(); // Auto-scroll to bottom
         }
 
-        private void UpdateProgress(int value, string currentPrinter)
-        {
-            if (InvokeRequired)
-            {
-                Invoke(new Action(() => UpdateProgress(value, currentPrinter)));
-                return;
-            }
-
-            progressBar1.Value = Math.Min(value, 100);
-            lblProgress.Text = $"Installing: {currentPrinter} ({value}%)";
-        }
-
-
+        // Initializes the status strip with date, time, and copyright
         private void InitializeStatusStrip()
         {
-            // Create StatusStrip
             StatusStrip statusStrip1 = new StatusStrip();
 
-            // Create labels
             ToolStripStatusLabel dateLabel = new ToolStripStatusLabel();
             ToolStripStatusLabel timeLabel = new ToolStripStatusLabel();
             ToolStripStatusLabel copyrightLabel = new ToolStripStatusLabel();
 
-            // Set initial text
             dateLabel.Name = "dateLabel";
             dateLabel.Text = DateTime.Now.ToString("MMMM dd, yyyy");
 
@@ -227,21 +172,21 @@ namespace InstallDKLPrinters
             this.Controls.Add(statusStrip1);
         }
 
-        // ... other code ...
-
+        // Initializes and starts the timer for UI updates
         private void InitializeTimer()
         {
             timer1 = new System.Windows.Forms.Timer
             {
-                Interval = 1000 // 1 second
+                Interval = 250 // Faster tick for smoother spinner
             };
             timer1.Tick += Timer_Tick;
             timer1.Start();
         }
 
-        private void Timer_Tick(object sender, EventArgs e)
+        // Timer tick event updates date/time and spinner animation
+        private void Timer_Tick(object? sender, EventArgs e)
         {
-            // Update date and time labels
+            // Update date and time labels in the status strip
             foreach (Control control in this.Controls)
             {
                 if (control is StatusStrip statusStrip)
@@ -255,7 +200,13 @@ namespace InstallDKLPrinters
                     }
                 }
             }
-        }
 
+            // Update spinner animation if installation is in progress
+            if (isInstalling)
+            {
+                spinnerIndex = (spinnerIndex + 1) % spinnerFrames.Length;
+                lblProgress.Text = $"🖨️ Installing printers... Please wait {spinnerFrames[spinnerIndex]}";
+            }
+        }
     }
 }
