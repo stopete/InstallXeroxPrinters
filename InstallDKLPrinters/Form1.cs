@@ -64,16 +64,20 @@ namespace InstallDKLPrinters
             {
                 string workingDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\') + "\\";
 
-                // Define paths to PowerShell scripts
-                string installPrintersScript = Path.Combine(workingDir, "installprinters.ps1");
-                string setSecureScript = Path.Combine(workingDir, "SeSecurePrintSettings.ps1");
+                // Step 1: Unblock files before execution
+                Log("🔍 Checking and unblocking files...");
+                FileUnblocker.UnblockAllFiles(workingDir, Log);
 
-                // Run installprinters.ps1
+                // Step 2: Define paths to PowerShell scripts
+                string installPrintersScript = Path.Combine(workingDir, "installprinters.ps1");
+                string setSecureScript = Path.Combine(workingDir, "SetSecurePrintSettings.ps1");
+
+                // Step 3: Run installprinters.ps1
                 Log("▶️ Running installprinters.ps1...");
                 RunCommand("powershell", $"-ExecutionPolicy Bypass -File \"{installPrintersScript}\"");
 
-                // Run SeSecurePrintSettings.ps1
-                Log("▶️ Running SeSecurePrintSettings.ps1...");
+                // Step 4: Run SetSecurePrintSettings.ps1
+                Log("▶️ Running SetSecurePrintSettings.ps1...");
                 RunCommand("powershell", $"-ExecutionPolicy Bypass -File \"{setSecureScript}\"");
 
                 Log("✅ All scripts executed successfully.");
@@ -206,6 +210,35 @@ namespace InstallDKLPrinters
             {
                 spinnerIndex = (spinnerIndex + 1) % spinnerFrames.Length;
                 lblProgress.Text = $"🖨️ Installing printers... Please wait {spinnerFrames[spinnerIndex]}";
+            }
+        }
+    }
+
+    // 🔹 File Unblocker helper class
+    public static class FileUnblocker
+    {
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool DeleteFile(string name);
+
+        public static void UnblockFile(string filePath)
+        {
+            string ads = filePath + ":Zone.Identifier";
+            DeleteFile(ads); // Removes the ADS if present
+        }
+
+        public static void UnblockAllFiles(string folderPath, Action<string> logAction)
+        {
+            foreach (var file in Directory.GetFiles(folderPath))
+            {
+                try
+                {
+                    UnblockFile(file);
+                    logAction?.Invoke($"✅ Unblocked {Path.GetFileName(file)}");
+                }
+                catch (Exception ex)
+                {
+                    logAction?.Invoke($"⚠️ Could not unblock {Path.GetFileName(file)}: {ex.Message}");
+                }
             }
         }
     }
