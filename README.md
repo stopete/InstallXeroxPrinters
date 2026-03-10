@@ -5,6 +5,8 @@
 A Windows Forms application that automates the installation of multiple network printers with appropriate drivers based on system architecture. Designed for DKL library environments with minimal user interaction.
 
 ---
+<img width="533" height="382" alt="image" src="https://github.com/user-attachments/assets/799f12b3-17f4-42d2-bda5-43ab28132202" />
+
 
 ## 🚀 Features
 
@@ -83,3 +85,4 @@ These are refreshed every second using `System.Windows.Forms.Timer`.
 ## ⚠️ Disclaimer
 
 This tool is intended for use in trusted environments. Always verify printer driver files before deployment.
+
