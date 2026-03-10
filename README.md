@@ -2,7 +2,7 @@
 
 # 🖨️ Install Network Xerox Printers
 
-A Windows Forms application that automates the installation of multiple network printers with appropriate drivers based on system architecture. Designed for DKL library environments with minimal user interaction.
+A Windows Forms application that automates the installation of multiple network printers with appropriate drivers based on system architecture. Designed for a lab or library environments with minimal user interaction.
 
 ---
 <img width="666" height="478" alt="image" src="https://github.com/user-attachments/assets/8af6f6c7-8802-46e0-903d-327d27e81f47" />
@@ -86,5 +86,6 @@ These are refreshed every second using `System.Windows.Forms.Timer`.
 ## ⚠️ Disclaimer
 
 This tool is intended for use in trusted environments. Always verify printer driver files before deployment.
+
 
 
